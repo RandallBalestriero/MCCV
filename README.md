@@ -1,0 +1,163 @@
+<center>MCCV: **M**inimalist **C**luster **C**ross-**V**alidation from ArgumentParser</center>
+-----------------------------------------------------------------------------
+
+MCCV is intended to be a minimalist argument parser based cross-validation (CV) helper. It allows the user to define default/debug argument as well as tunable ones (the ones being cross-validated) in the format of an argument parser. It is heavily influenced by the [test_tube](https://github.com/williamFalcon/test-tube) library which is unfortunately discontinued. In fact, MCCV is in homage to William Falcon who discontinued [test_tube](https://github.com/williamFalcon/test-tube) to focus on [PyTorchLightning](https://www.pytorchlightning.ai/). 
+
+*MCCV focuses on two key utilities:*
+
+- *providing CV grids from simple argument parser definition*
+- *automatically generate SLURM configuration files to deploy the CV on a cluster*
+
+*making MCCV completely independant from the type of work your will be using it for.*
+
+# Simple ArgumentParser definition of your search space
+
+
+Argument parsers e.g. from [argparse](https://docs.python.org/3/library/argparse.html) are used all around as a mean to specify user/default argument to a script dynamically. MCCV builds on the rich `argparse.ArgumentParser` class, and extends it to allow definition of tunable parameters to cross-validate.
+
+
+## A regular ArgmentParser solution
+
+The MCCV argument parser that would allow you to provide default/debug argument as well as a CV grid looks like the regular `ArgumentParser` for all the arguments non-tunable arguments. For the tunable ones, one can use `add_CV_choice` or `add_CV_range` to add an argument that will also need to be CV as in
+```
+parser = mccv.CVArgumentParser(strategy="grid_search", add_help=False)
+parser.add_argument("--launch_CV", action="store_true")
+parser.add_argument("--dataset", type=str, default="CIFAR100")
+parser.add_CV_choice(
+    "--learning_rate",
+    default=0.1,
+    type=float,
+    choices=[0.2, 0.1, 0.05],
+    tunable=True,
+)
+parser.add_CV_choice(
+    "--weight_decay",
+    default=1e-4,
+    type=float,
+    choices=[1e-5, 1e-4, 1e-3],
+    tunable=True,
+)
+args = parser.parse_args()
+```
+
+## Loop through the candidates or with passed/default values
+
+In the below, one can simply look through all the possible candidates from the search space (here we take the first 5 only)
+```
+if args.launch_CV:
+    # loop through the first 6 configurations
+    for trial_args in args.generate_trials(6):
+        print(trial_args.dataset, trial_args.learning_rate, trial_args.weight_decay)
+else:
+    # without the launch_CV flag you can run your usual debug
+    # with the user-provided/default arguments as defined above
+    print(args.dataset, args.learning_rate, args.weight_decay)
+```
+running the above script without any flag `python myscript.py` would use the default values and print 
+> CIFAR100 0.1 0.0001
+
+running the above script with a desired parameter value e.g. `python myscript.py --learning_rate 42` would print
+> CIFAR100 42.0 0.0001
+
+which is useful to debug locally using a specific set of argument. Lastly, running the above script with the `python myscript.py --launch_CV` flag would print
+> CIFAR100 0.2 1e-05\
+> CIFAR100 0.2 0.0001\
+> CIFAR100 0.2 0.001\
+> CIFAR100 0.1 1e-05\
+> CIFAR100 0.1 0.0001\
+> CIFAR100 0.1 0.001
+
+this can be used as a stand-alone to launch jobs or training processes as per below. 
+
+## Get a nicely formatted name for saving your trial(s) results
+
+Consider that you have a training loop that will be called with the (sampled/default) parsed args. It will be usefull to save/monitor some quantities for each run and thus to have access to a nicely formatted trial name. That is provided by the `pretty_print` method as in
+```
+def trainer(args):
+    print(args.pretty_print())
+    print(args.pretty_print(separator="-", equal=":"))
+    print(args.pretty_print(name_mapping={'learning_rate':'lr','weight_decay':'wd'}, equal="",
+                            blacklist=['dataset']))
+```
+which will print 
+> dataset-CIFAR100_learning_rate-0.1_weight_decay-0.0001\
+> dataset:CIFAR100-learning_rate:0.1-weight_decay:0.0001\
+> lr0.1_wd0.0001
+
+# Automated SLURM job configuration file generation/submission
+Another time-saving feature of MCCV is the ability to generate SLURM configuration jobs on the fly and to submit them. Here is a simple example given an
+already known executable command (we will see later how this feature can be combined with MCCV argument parser to deploy cross-validation grids in a few lines)
+```
+config = mccv.SLURMConfig(
+    job_name="test",
+    cpus_per_task=20,
+    gpus_per_node=1,
+    ntasks_per_node=1,
+    nodes=1,
+    time=300,
+    gpu=1,
+    srun_cmd=command,
+)
+
+# load the anaconda package on the launch node
+config.add_command("module load anaconda3/2020.11-nold")
+# activate the environment on the launch node
+config.add_command(
+    "source activate $PATH_TO_ENV"
+)
+config.write(script_name="autogenerated_SLURM.sh", autolaunch=True)
+```
+the `script_name` can be left out, in which case a default one is used. The `autolaunch` option automatically submit the generated job to SLURM.
+
+# Loop through the candidates and launch SLURM jobs
+One major benefit of MCCV is that it allows to not only loop through your trials but also to directly generate SLURM configuration files to launch the training of
+those trials in parallel on your cluster. Your code remains as minimialist as possible, here is a full working example including virtual environment setting:
+```
+parser = CVArgumentParser(strategy="grid_search", add_help=False)
+parser.add_argument("--launch_CV", action="store_true")
+parser.add_argument("--dataset", type=str, default="CIFAR100")
+parser.add_CV_choice(
+    "--learning_rate",
+    default=0.1,
+    type=float,
+    choices=[0.2, 0.1, 0.05],
+    tunable=True,
+)
+parser.add_CV_choice(
+    "--weight_decay",
+    default=1e-4,
+    type=float,
+    choices=[1e-5, 1e-4, 1e-3],
+    tunable=True,
+)
+args = parser.parse_args()
+
+if args.launch_CV:
+    for trial_args in args.generate_trials(5):
+        print(trial_args)
+        command = f"python {os.path.realpath(__file__)} {hp.format_args()}"
+        print(command)
+        module = SLURMConfig(
+            job_name="test",
+            partition="learnfair",
+            cpus_per_task=20,
+            gpus_per_node=1,
+            ntasks_per_node=1,
+            nodes=1,
+            time=300,
+            gpu=1,
+            srun_cmd=command,
+        )
+
+        # load the anaconda package on the launch node
+        module.add_command("module load anaconda3/2020.11-nold")
+        # activate the environment on the launch node
+        module.add_command(
+            "source activate /private/home/rbalestriero/anaconda3/envs/latest"
+        )
+        module.write(autolaunch=False)
+
+```
+
+### Obtaining the name of the current experiment (e.g. for saving)
+
