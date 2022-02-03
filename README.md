@@ -1,4 +1,4 @@
-<center>MCCV: **M**inimalist **C**luster **C**ross-**V**alidation from ArgumentParser</center>
+MCCV: **M**inimalist **C**luster **C**ross-**V**alidation from ArgumentParser
 -----------------------------------------------------------------------------
 
 MCCV is intended to be a minimalist argument parser based cross-validation (CV) helper. It allows the user to define default/debug argument as well as tunable ones (the ones being cross-validated) in the format of an argument parser. It is heavily influenced by the [test_tube](https://github.com/williamFalcon/test-tube) library which is unfortunately discontinued. In fact, MCCV is in homage to William Falcon who discontinued [test_tube](https://github.com/williamFalcon/test-tube) to focus on [PyTorchLightning](https://www.pytorchlightning.ai/). 
