@@ -9,6 +9,15 @@ import numpy as np
 import os
 import itertools
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 class CVArgumentParser(ArgumentParser):
     """
@@ -32,6 +41,17 @@ class CVArgumentParser(ArgumentParser):
         self.opt_args = {}
         self.json_config_arg_name = None
         self.pool = None
+
+    def add_argument(self, *args,**kwargs):
+        if "action" in kwargs:
+            if kwargs['action'] =="store_true":
+                del kwargs['action']
+                super().add_argument(*args, type=str2bool, nargs='?',
+                                const=True, default=False,
+                                **kwargs)
+                return
+        super().add_argument(*args,**kwargs)
+
 
     def add_CV_choice(self, *args, choices=None, tunable=False, **kwargs):
         self.add_argument(*args, **kwargs)
@@ -158,7 +178,9 @@ class TTNamespace(argparse.Namespace):
 
     def format_args(self, blacklist=None):
         if blacklist is None:
-            blacklist = []
+            blacklist = ["launch_CV"]
+        else:
+            blacklist += ["launch_CV"]
 
         command = " ".join(
             [f"--{k} {v}" for (k, v) in self.__dict__.items() if k not in blacklist]

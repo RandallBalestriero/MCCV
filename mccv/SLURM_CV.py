@@ -27,10 +27,11 @@ class AbstractSLURMConfig(object):
         self.email = None
         self.notify_on_end = False
         self.notify_on_fail = False
-        self.job_display_name = None
+        self.display_name = None
         self.srun_cmd = "python3"
         self.gpu_type = None
         self.call_load_checkpoint = False
+        self.partition=None
         self.commands = []
         self.slurm_commands = []
 
@@ -70,7 +71,7 @@ class SLURMConfig(AbstractSLURMConfig):
         # add job name
         command = [
             "# set a job name",
-            "#SBATCH --job-name={}".format(self.job_display_name),
+            "#SBATCH --job-name={}".format(self.display_name),
             "#################\n",
         ]
         sub_commands.extend(command)
@@ -98,6 +99,15 @@ class SLURMConfig(AbstractSLURMConfig):
             "#################\n",
         ]
         sub_commands.extend(command)
+
+        if self.partition is not None:
+            # add partition
+            command = [
+                "# partition for the job",
+                "#SBATCH --partition={}".format(self.partition),
+                "#################\n",
+            ]
+            sub_commands.extend(command)
 
         if self.gpu > 0:
             command = [
@@ -178,8 +188,8 @@ class SLURMConfig(AbstractSLURMConfig):
             sub_commands.append(cmd)
             sub_commands.append("\n")
 
-        cmd = "srun {}".format(self.srun_cmd)
-        sub_commands.append(cmd)
+        # cmd = "srun {}".format(self.srun_cmd)
+        sub_commands.append(self.srun_cmd)
 
         # build full command with empty lines in between
         full_command = "\n".join(sub_commands)
