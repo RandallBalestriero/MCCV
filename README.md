@@ -16,7 +16,7 @@ MCCV is intended to be a minimalist argument parser based cross-validation (CV) 
 Argument parsers e.g. from [argparse](https://docs.python.org/3/library/argparse.html) are used all around as a mean to specify user/default argument to a script dynamically. MCCV builds on the rich `argparse.ArgumentParser` class, and extends it to allow definition of tunable parameters to cross-validate.
 
 
-## A regular ArgmentParser solution
+## Defining a CV search space: a simple ArgmentParser solution
 
 The MCCV argument parser that would allow you to provide default/debug argument as well as a CV grid looks like the regular `ArgumentParser` for all the arguments non-tunable arguments. For the tunable ones, one can use `add_CV_choice` or `add_CV_range` to add an argument that will also need to be CV as in
 ```
@@ -40,7 +40,7 @@ parser.add_CV_choice(
 args = parser.parse_args()
 ```
 
-## Loop through the candidates or with passed/default values
+## Loop through the candidates or use the passed/default values
 
 In the below, one can simply look through all the possible candidates from the search space (here we take the first 5 only)
 ```
