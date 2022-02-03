@@ -158,6 +158,3 @@ if args.launch_CV:
         module.write(autolaunch=False)
 
 ```
-
-### Obtaining the name of the current experiment (e.g. for saving)
-
