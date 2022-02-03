@@ -6,7 +6,6 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="MCCV",
-    version="0.0.1",
     author="Randall Balestriero",
     author_email="rbalestriero@fb.com",
     description="Minimalist argument parser based cross-validation and cluster job submission file generation",
